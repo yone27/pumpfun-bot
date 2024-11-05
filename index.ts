@@ -3,11 +3,9 @@ import { getParsedTransaction } from "./parseTransaction"; // Asegúrate de que 
 
 const startMonitoringPumpFun = async () => {
   try {
-    // PUMP FUN ADDRESS
     const publicKey = new PublicKey(
       "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
     );
-    // Use default RPC but shyft or helius or other provider is recommended
     const connection = new Connection("https://api.mainnet-beta.solana.com", {
       wsEndpoint: "wss://api.mainnet-beta.solana.com"
     });
