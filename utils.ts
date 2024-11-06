@@ -1,29 +1,47 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import axios from "axios";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+export const getEnv = () => {
+  return {
+    MC: process.env.MC ? parseFloat(process.env.MC) : 0,
+    TOP_HOLDERS: process.env.TOP_HOLDERS ? parseFloat(process.env.TOP_HOLDERS) : 0,
+    RPC: process.env.RPC,
+    RPC_WSS: process.env.RPC_WSS
+  };
+};
 
 export async function getTopHolders(
   tokenMint: PublicKey,
-  connection: Connection
+  connection: Connection,
+  numberHolders: number,
+  bondingCurved: string,
 ) {
   try {
     let decimals: number = 0;
 
-    // Obtener la cantidad total de tokens : aunque podria quitar esta consulta ya que los tokens de pumpfun tiene 1b de supply
+    // Obtener la cantidad total de tokens : aunque podría quitar esta consulta ya que los tokens de pumpfun tienen 1b de supply
     const { value: tokenSupply } = await connection.getTokenSupply(tokenMint);
     decimals = tokenSupply.decimals;
     const totalSupply = parseFloat(tokenSupply.uiAmountString ?? "0");
 
-    // Obtener las cuentas de los holders principales
+    // Obtener las cuentas de los holders principales y filtrar el bonding curve
     const largestAccounts = await connection.getTokenLargestAccounts(tokenMint);
+    const filteredAccounts = largestAccounts.value.filter(
+      (item) => item.address.toBase58() !== bondingCurved
+    );
 
     // Calcular el porcentaje de tokens de cada holder principal
-    const topHolders = largestAccounts.value
-      .slice(0, 10)
+    let totalTopHolderPercentage = 0;
+    const topHolders = filteredAccounts
+      .slice(0, numberHolders)
       .map((account: any) => {
         const balance =
-          account.uiAmount ??
-          parseFloat(account.amount) / Math.pow(10, decimals);
+          account.uiAmount ?? parseFloat(account.amount) / Math.pow(10, decimals);
         const percentage = ((balance / totalSupply) * 100).toFixed(2);
+        totalTopHolderPercentage += Number(percentage);
 
         return {
           publicKey: account.address.toBase58(),
@@ -31,14 +49,18 @@ export async function getTopHolders(
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
           }),
-          percentage: `${percentage}%`
+          percentage: `${percentage}%`,
+          ...account
         };
       });
 
-    return { topHolders };
+    return {
+      topHolders,
+      totalTopHolderPercentage: totalTopHolderPercentage.toFixed(2)
+    };
   } catch (error) {
     console.error("Error fetching token information:", error);
-    return { topHolders: [] };
+    return { topHolders: [], totalTopHolderPercentage: "0%" };
   }
 }
 
