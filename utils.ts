@@ -1,4 +1,6 @@
 import { Connection, PublicKey } from "@solana/web3.js";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+
 import axios from "axios";
 import dotenv from "dotenv";
 
@@ -7,7 +9,9 @@ dotenv.config();
 export const getEnv = () => {
   return {
     MC: process.env.MC ? parseFloat(process.env.MC) : 0,
-    TOP_HOLDERS: process.env.TOP_HOLDERS ? parseFloat(process.env.TOP_HOLDERS) : 0,
+    TOP_HOLDERS: process.env.TOP_HOLDERS
+      ? parseFloat(process.env.TOP_HOLDERS)
+      : 0,
     RPC: process.env.RPC,
     RPC_WSS: process.env.RPC_WSS
   };
@@ -17,7 +21,7 @@ export async function getTopHolders(
   tokenMint: PublicKey,
   connection: Connection,
   numberHolders: number,
-  bondingCurved: string,
+  bondingCurved: string
 ) {
   try {
     let decimals: number = 0;
@@ -39,7 +43,8 @@ export async function getTopHolders(
       .slice(0, numberHolders)
       .map((account: any) => {
         const balance =
-          account.uiAmount ?? parseFloat(account.amount) / Math.pow(10, decimals);
+          account.uiAmount ??
+          parseFloat(account.amount) / Math.pow(10, decimals);
         const percentage = ((balance / totalSupply) * 100).toFixed(2);
         totalTopHolderPercentage += Number(percentage);
 
@@ -61,6 +66,19 @@ export async function getTopHolders(
   } catch (error) {
     console.error("Error fetching token information:", error);
     return { topHolders: [], totalTopHolderPercentage: "0%" };
+  }
+}
+
+export async function getMinHolders(
+  tokenMint: PublicKey,
+  connection: Connection,
+  ownerMint: string
+) {
+  try {
+    const largestAccounts = await connection.getTokenLargestAccounts(tokenMint);
+console.log(`Top holders: ${largestAccounts.value.length}`);
+  } catch (error) {
+    console.error("Error fetching token information:", error);
   }
 }
 

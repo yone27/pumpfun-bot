@@ -1,7 +1,7 @@
 // import { PumpApi } from "@cryptoscan/pumpfun-sdk";
 
 import { Connection, PublicKey } from "@solana/web3.js";
-import { getTopHolders } from "./utils";
+import { getMinHolders, getTopHolders } from "./utils";
 import axios from "axios";
 
 // const api = new PumpApi();
@@ -61,11 +61,13 @@ import axios from "axios";
     wsEndpoint: "wss://api.mainnet-beta.solana.com"
   });
   const tokenMint = new PublicKey(
-    "HNWKrXFJZ29inRB9f1hNJTXm7ULnGMkinbcFkchVpump"
+    "DJCNQA4v43WSKsNnEcXZUZcys5Hui5QoFKCiiAA3xnyn"
   );
-  const tokenBOunding = "DBKtkLmRLcHcVL8W1JvLJUaTtDF46vFkkjqxq2kb16Dw"
+  const tokenBounding = "DBKtkLmRLcHcVL8W1JvLJUaTtDF46vFkkjqxq2kb16Dw"
 
-  const tokenTop10 = await getTopHolders(tokenMint, connection, 10, tokenBOunding);
-  console.log(JSON.stringify(tokenTop10.topHolders, null, 2));
-  console.log(tokenTop10.totalTopHolderPercentage);
+  console.log({connection})
+
+  const tokenTop10 = await getMinHolders(tokenMint, connection, "9Dw9vQy6MuQ4WRZ3vTceb173TJwWe9CU7KtSb87QBTLB");
+  // console.log(JSON.stringify(tokenTop10.topHolders, null, 2));
+  // console.log(tokenTop10.totalTopHolderPercentage);
 })();
