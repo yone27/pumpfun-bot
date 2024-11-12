@@ -1,5 +1,4 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 import axios from "axios";
 import dotenv from "dotenv";
@@ -12,8 +11,13 @@ export const getEnv = () => {
     TOP_HOLDERS: process.env.TOP_HOLDERS
       ? parseFloat(process.env.TOP_HOLDERS)
       : 0,
+    TOP_HOLDER_PERCENTAGE: process.env.TOP_HOLDER_PERCENTAGE
+      ? parseFloat(process.env.TOP_HOLDER_PERCENTAGE)
+      : 0,
     RPC: process.env.RPC,
-    RPC_WSS: process.env.RPC_WSS
+    RPC_WSS: process.env.RPC_WSS,
+    RUG_CHECK: true,
+    ONE_SOCIAL: process.env.ONE_SOCIAL == "TRUE" ? true : false
   };
 };
 
@@ -76,7 +80,7 @@ export async function getMinHolders(
 ) {
   try {
     const largestAccounts = await connection.getTokenLargestAccounts(tokenMint);
-console.log(`Top holders: ${largestAccounts.value.length}`);
+    console.log(`Top holders: ${largestAccounts.value.length}`);
   } catch (error) {
     console.error("Error fetching token information:", error);
   }

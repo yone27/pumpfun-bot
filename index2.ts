@@ -30,7 +30,8 @@ interface TokenUpdate extends TokenEntity {
   tokenAmount: number;
 }
 
-const { MC, TOP_HOLDERS, RPC, RPC_WSS } = getEnv();
+const { MC, TOP_HOLDERS, RPC, RPC_WSS, RUG_CHECK, TOP_HOLDER_PERCENTAGE } =
+  getEnv();
 
 (async () => {
   const ws = new WebSocket("wss://pumpportal.fun/api/data");
@@ -63,9 +64,12 @@ const { MC, TOP_HOLDERS, RPC, RPC_WSS } = getEnv();
   }
 
   async function updateFinalTokensList(token: TokenUpdate) {
-    const criterios = token.marketCapSol > MC;
+    let criterios = []; // Initialize as an empty array
 
-    // 1 - CRITERIOS: Top holders
+    if (MC) {
+      criterios.push(token.marketCapSol < MC ? false : true);
+    }
+
     if (Number(TOP_HOLDERS)) {
       const connection = new Connection(RPC || "", {
         wsEndpoint: RPC_WSS
@@ -80,7 +84,24 @@ const { MC, TOP_HOLDERS, RPC, RPC_WSS } = getEnv();
       token.totalTopHolderPercentage = Number(
         tokenTop10.totalTopHolderPercentage
       );
+
+      criterios.push(
+        token.totalTopHolderPercentage > TOP_HOLDER_PERCENTAGE ? false : true
+      );
     }
+
+    console.log({RUG_CHECK})
+    if (RUG_CHECK) {
+      console.log('RUGCHECK')
+      // const { data } = await axios.get(
+      //   `https://api.rugcheck.xyz/v1/tokens/${token.mint}/report/summary`
+      // );
+      // criterios.push(
+      //   data.risk > 2500 ? false : true
+      // );
+    }
+
+    console.log(JSON.stringify(criterios))
 
     if (criterios) {
       const index = finalTokensList.findIndex((t) => t.mint === token.mint);
@@ -97,18 +118,18 @@ const { MC, TOP_HOLDERS, RPC, RPC_WSS } = getEnv();
       }
     }
 
-    console.log(
-      "finalTokensList actualizado:",
-      JSON.stringify(
-        finalTokensList.map((item) => ({
-          mint: item.mint,
-          marketCapSol: item.marketCapSol,
-          totalTopHolderPercentage: item.totalTopHolderPercentage
-        })),
-        null,
-        2
-      )
-    );
+    // console.log(
+    //   "finalTokensList actualizado:",
+    //   JSON.stringify(
+    //     finalTokensList.map((item) => ({
+    //       mint: item.mint,
+    //       marketCapSol: item.marketCapSol,
+    //       totalTopHolderPercentage: item.totalTopHolderPercentage
+    //     })),
+    //     null,
+    //     2
+    //   )
+    // );
   }
 
   ws.on("open", () => {
@@ -126,12 +147,7 @@ const { MC, TOP_HOLDERS, RPC, RPC_WSS } = getEnv();
       parsedData.associated_bonding_curve = data.associated_bonding_curve;
 
       await handleNewToken(parsedData);
-      console.log("parsedData create", JSON.stringify(parsedData, null, 2));
     } else if (parsedData.txType === "buy" || parsedData.txType === "sell") {
-      console.log(
-        "parsedData buy || sell",
-        JSON.stringify(parsedData, null, 2)
-      );
       await updateFinalTokensList(parsedData);
     }
   });

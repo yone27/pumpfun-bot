@@ -57,17 +57,30 @@ import axios from "axios";
 //   console.log(JSON.stringify(data, null, 2))
 // })();
 (async () => {
-  const connection = new Connection("https://api.mainnet-beta.solana.com", {
-    wsEndpoint: "wss://api.mainnet-beta.solana.com"
-  });
-  const tokenMint = new PublicKey(
-    "DJCNQA4v43WSKsNnEcXZUZcys5Hui5QoFKCiiAA3xnyn"
-  );
-  const tokenBounding = "DBKtkLmRLcHcVL8W1JvLJUaTtDF46vFkkjqxq2kb16Dw"
+  // const connection = new Connection("https://api.mainnet-beta.solana.com", {
+  //   wsEndpoint: "wss://api.mainnet-beta.solana.com"
+  // });
+  // const tokenMint = new PublicKey(
+  //   "DJCNQA4v43WSKsNnEcXZUZcys5Hui5QoFKCiiAA3xnyn"
+  // );
+  // const tokenBounding = "DBKtkLmRLcHcVL8W1JvLJUaTtDF46vFkkjqxq2kb16Dw"
 
-  console.log({connection})
+  // console.log({connection})
 
-  const tokenTop10 = await getMinHolders(tokenMint, connection, "9Dw9vQy6MuQ4WRZ3vTceb173TJwWe9CU7KtSb87QBTLB");
+  // const tokenTop10 = await getMinHolders(tokenMint, connection, "9Dw9vQy6MuQ4WRZ3vTceb173TJwWe9CU7KtSb87QBTLB");
   // console.log(JSON.stringify(tokenTop10.topHolders, null, 2));
   // console.log(tokenTop10.totalTopHolderPercentage);
+
+  // unsubscribe after 10 seconds
+  while (true) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      const { data } = await axios.get(
+        "https://frontend-api.pump.fun/coins/currently-live?limit=1&offset=0&includeNsfw=true"
+      );
+      console.log(JSON.stringify(data));
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  }
 })();
