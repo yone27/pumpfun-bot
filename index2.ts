@@ -1,34 +1,13 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import {
+  API_URL,
   getEnv,
   getTopHolders,
-  listenTokenFromPumpPortal,
-  listenTokensFromPumpPortal
+  listenTokenFromPumpPortal
 } from "./utils";
 import WebSocket from "ws";
 import axios from "axios";
-
-interface TokenEntity {
-  signature: string;
-  mint: string;
-  traderPublicKey: string;
-  txType: "create" | "buy" | "sell";
-  initialBuy: number;
-  bondingCurveKey: string;
-  vTokensInBondingCurve: number;
-  vSolInBondingCurve: number;
-  marketCapSol: number;
-  name: string;
-  symbol: string;
-  uri: string;
-  totalTopHolderPercentage: number;
-  associated_bonding_curve: string;
-}
-
-interface TokenUpdate extends TokenEntity {
-  newTokenBalance: number;
-  tokenAmount: number;
-}
+import { Token, TokenUpdate } from "./entities";
 
 const { MC, TOP_HOLDERS, RPC, RPC_WSS, RUG_CHECK, TOP_HOLDER_PERCENTAGE } =
   getEnv();
@@ -36,121 +15,89 @@ const { MC, TOP_HOLDERS, RPC, RPC_WSS, RUG_CHECK, TOP_HOLDER_PERCENTAGE } =
 (async () => {
   const ws = new WebSocket("wss://pumpportal.fun/api/data");
 
+  const tokensMap: Map<string, Token> = new Map();
   const tokensString: string[] = [];
-  const tokensToMonitor: TokenEntity[] = [];
-  const finalTokensList: TokenEntity[] = [];
+  const qualifiedTokens: Map<string, Token> = new Map();
 
-  async function handleNewToken(token: TokenEntity) {
-    // TOP HOLDERS
-    if (Number(TOP_HOLDERS)) {
-      const connection = new Connection(RPC || "", {
-        wsEndpoint: RPC_WSS
-      });
-      const tokenMint = new PublicKey(token.mint);
-      const tokenTop10 = await getTopHolders(
-        tokenMint,
-        connection,
-        Number(TOP_HOLDERS),
-        token.associated_bonding_curve
-      );
-      token.totalTopHolderPercentage = Number(
-        tokenTop10.totalTopHolderPercentage
-      );
+  function handleNewTokens(token: Token) {
+    // Verifica si el token ya existe en el Map
+    if (!tokensMap.has(token.mint)) {
+      tokensMap.set(token.mint, token);
+      tokensString.push(token.mint);
+
+      listenTokenFromPumpPortal(tokensString, ws);
     }
-
-    tokensToMonitor.push(token);
-    tokensString.push(token.mint);
-    listenTokenFromPumpPortal(tokensString, ws);
   }
 
   async function updateFinalTokensList(token: TokenUpdate) {
-    let criterios = []; // Initialize as an empty array
+    const currentToken = tokensMap.get(token.mint);
+    let criterios = [];
 
+    // Verificar criterios como Market Cap y Top Holders
     if (MC) {
+      // console.log("MC:", MC);
+      // console.log("marketCapSol:", token.marketCapSol);
+      // console.log("Mint:", token.mint);
+
       criterios.push(token.marketCapSol < MC ? false : true);
     }
 
     if (Number(TOP_HOLDERS)) {
-      const connection = new Connection(RPC || "", {
-        wsEndpoint: RPC_WSS
-      });
-      const tokenMint = new PublicKey(token.mint);
-      const tokenTop10 = await getTopHolders(
-        tokenMint,
-        connection,
-        Number(TOP_HOLDERS),
-        token.associated_bonding_curve
-      );
-      token.totalTopHolderPercentage = Number(
-        tokenTop10.totalTopHolderPercentage
-      );
-
-      criterios.push(
-        token.totalTopHolderPercentage > TOP_HOLDER_PERCENTAGE ? false : true
-      );
+      // console.log({ TOP_HOLDERS });
     }
 
-    console.log({RUG_CHECK})
     if (RUG_CHECK) {
-      console.log('RUGCHECK')
-      // const { data } = await axios.get(
-      //   `https://api.rugcheck.xyz/v1/tokens/${token.mint}/report/summary`
-      // );
-      // criterios.push(
-      //   data.risk > 2500 ? false : true
-      // );
+      // console.log({ RUG_CHECK });
     }
 
-    console.log(JSON.stringify(criterios))
+    // Siempre actualizamos el marketCapSol en el token actual
+    if (currentToken) {
+      currentToken.marketCapSol = token.marketCapSol;
+    }
 
-    if (criterios) {
-      const index = finalTokensList.findIndex((t) => t.mint === token.mint);
-
-      if (index === -1) {
-        finalTokensList.push(token);
-      } else {
-        finalTokensList[index].marketCapSol = token.marketCapSol;
+    if (criterios.every((c) => c)) {
+      if (currentToken) {
+        qualifiedTokens.set(token.mint, currentToken);
+        console.log(
+          "Qualified Tokens después de actualizar:",
+          Array.from(qualifiedTokens.keys())
+        );
       }
     } else {
-      const index = finalTokensList.findIndex((t) => t.mint === token.mint);
-      if (index !== -1) {
-        finalTokensList.splice(index, 1);
-      }
+      qualifiedTokens.delete(token.mint);
     }
-
-    // console.log(
-    //   "finalTokensList actualizado:",
-    //   JSON.stringify(
-    //     finalTokensList.map((item) => ({
-    //       mint: item.mint,
-    //       marketCapSol: item.marketCapSol,
-    //       totalTopHolderPercentage: item.totalTopHolderPercentage
-    //     })),
-    //     null,
-    //     2
-    //   )
-    // );
   }
 
   ws.on("open", () => {
-    listenTokensFromPumpPortal(ws);
     listenTokenFromPumpPortal(tokensString, ws);
   });
 
   ws.on("message", async function message(data: string) {
     const parsedData = JSON.parse(data);
 
-    if (parsedData.txType === "create") {
-      const { data } = await axios.get(
-        "https://frontend-api.pump.fun/coins/" + parsedData.mint
-      );
-      parsedData.associated_bonding_curve = data.associated_bonding_curve;
-
-      await handleNewToken(parsedData);
-    } else if (parsedData.txType === "buy" || parsedData.txType === "sell") {
+    if (parsedData.txType === "buy" || parsedData.txType === "sell") {
+      console.log({parsedData})
       await updateFinalTokensList(parsedData);
+      console.log("Tokens escuchandos: " + tokensString.length);
     }
   });
+
+  // Función para obtener los datos de nuevos tokens
+  const fetchNewTokens = async () => {
+    try {
+      const response = await axios.get(API_URL);
+      const token: Token = response.data;
+      // const tokens: Token[] = response.data;
+
+      // for (const token of tokens) {
+        handleNewTokens(token);
+      // }
+    } catch (error) {
+      console.error("Error al obtener los tokens:", error);
+    }
+  };
+
+  setInterval(fetchNewTokens, 20000);
 
   ws.on("close", () => console.log("Conexión WebSocket cerrada."));
   ws.on("error", (error) => console.error("Error en WebSocket:", error));

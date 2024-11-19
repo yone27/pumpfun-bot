@@ -119,3 +119,6 @@ export function listenTokenFromPumpPortal(tokens: string[], ws: any) {
   };
   ws.send(JSON.stringify(payload));
 }
+
+export const API_URL = "https://frontend-api.pump.fun/coins/latest";
+   

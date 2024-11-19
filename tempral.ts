@@ -84,3 +84,46 @@ import axios from "axios";
     }
   }
 })();
+
+
+async function updateFinalTokensList(token: TokenUpdate) {
+  let criterios = []; // Inicializar como un array vacío
+
+  // Verificar criterios como Market Cap y Top Holders
+  if (MC) {
+    criterios.push(token.marketCapSol < MC ? false : true);
+  }
+
+  if (Number(TOP_HOLDERS)) {
+    const connection = new Connection(RPC || "", {
+      wsEndpoint: RPC_WSS
+    });
+    const tokenMint = new PublicKey(token.mint);
+    const tokenTop10 = await getTopHolders(
+      tokenMint,
+      connection,
+      Number(TOP_HOLDERS),
+      token.associated_bonding_curve
+    );
+    token.totalTopHolderPercentage = Number(
+      tokenTop10.totalTopHolderPercentage
+    );
+    criterios.push(
+      token.totalTopHolderPercentage > TOP_HOLDER_PERCENTAGE ? false : true
+    );
+  }
+
+  if (RUG_CHECK) {
+    console.log("RUGCHECK");
+    // Aquí iría el código para hacer la validación con RugCheck
+  }
+
+  if (criterios.every(c => c)) {
+    const existingToken = tokensMap.get(token.mint);
+    if (existingToken) {
+      existingToken.marketCapSol = token.marketCapSol; // Actualizar el valor
+    }
+  } else {
+    tokensMap.delete(token.mint); // Eliminar si no cumple con los criterios
+  }
+}
